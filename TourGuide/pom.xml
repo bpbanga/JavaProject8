@@ -64,7 +64,21 @@
 			<artifactId>rewardCentral</artifactId>
 			<version>1.0.0</version>
 		</dependency>
-	</dependencies>
+	
+   <dependency>
+     <groupId>com.microsoft.azure.cognitiveservices</groupId>
+     <artifactId>azure-cognitiveservices-customvision-training</artifactId>
+     <version>1.0.2-beta</version>
+   </dependency>
+
+   <dependency>
+    <groupId>org.json</groupId>
+    <artifactId>json</artifactId>
+    <version>20230618</version>
+</dependency>
+
+ </dependencies>
+ 
 
 	<build>
 		<plugins>

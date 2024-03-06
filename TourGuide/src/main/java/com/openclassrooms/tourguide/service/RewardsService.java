@@ -1,5 +1,7 @@
 package com.openclassrooms.tourguide.service;
 
+import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
@@ -9,6 +11,7 @@ import gpsUtil.location.Attraction;
 import gpsUtil.location.Location;
 import gpsUtil.location.VisitedLocation;
 import rewardCentral.RewardCentral;
+
 import com.openclassrooms.tourguide.user.User;
 import com.openclassrooms.tourguide.user.UserReward;
 
@@ -37,18 +40,25 @@ public class RewardsService {
 	}
 	
 	public void calculateRewards(User user) {
-		List<VisitedLocation> userLocations = user.getVisitedLocations();
+		List<VisitedLocation> userLocations = new ArrayList<>(user.getVisitedLocations()); 
 		List<Attraction> attractions = gpsUtil.getAttractions();
+
 		
 		for(VisitedLocation visitedLocation : userLocations) {
-			for(Attraction attraction : attractions) {
-				if(user.getUserRewards().stream().filter(r -> r.attraction.attractionName.equals(attraction.attractionName)).count() == 0) {
-					if(nearAttraction(visitedLocation, attraction)) {
-						user.addUserReward(new UserReward(visitedLocation, attraction, getRewardPoints(attraction, user)));
+
+				for(Attraction attraction : attractions) {
+					UserReward rewardToAdd = null;
+					if(user.getUserRewards().stream().filter(r -> r.attraction.attractionName.equals(attraction.attractionName)).count() == 0) {
+						if(nearAttraction(visitedLocation, attraction)) {
+							rewardToAdd = new UserReward(visitedLocation, attraction, getRewardPoints(attraction, user));
+						}
+					}
+					if(rewardToAdd != null){
+						user.addUserReward(rewardToAdd);
 					}
 				}
 			}
-		}
+		
 	}
 	
 	public boolean isWithinAttractionProximity(Attraction attraction, Location location) {

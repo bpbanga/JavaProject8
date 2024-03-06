@@ -70,8 +70,13 @@ public class User {
 	}
 	
 	public void addUserReward(UserReward userReward) {
-		if(userRewards.stream().filter(r -> !r.attraction.attractionName.equals(userReward.attraction)).count() == 0) {
+		boolean rewardToAdd = false;
+		if( userRewards.stream().filter(r -> r.attraction.attractionName.equals(userReward.attraction.attractionName)).count() == 0) {
+			rewardToAdd = true;
+		}
+		if(rewardToAdd){
 			userRewards.add(userReward);
+
 		}
 	}
 	
