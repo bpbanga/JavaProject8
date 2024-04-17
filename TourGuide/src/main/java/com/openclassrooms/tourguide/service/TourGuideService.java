@@ -3,13 +3,13 @@ package com.openclassrooms.tourguide.service;
 import com.openclassrooms.tourguide.helper.InternalTestHelper;
 import com.openclassrooms.tourguide.tracker.Tracker;
 import com.openclassrooms.tourguide.user.User;
+import com.openclassrooms.tourguide.user.UserNerarbyAttraction;
 import com.openclassrooms.tourguide.user.UserReward;
 
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -17,12 +17,13 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -40,10 +41,14 @@ public class TourGuideService {
 	private Logger logger = LoggerFactory.getLogger(TourGuideService.class);
 	private final GpsUtil gpsUtil;
 	private final RewardsService rewardsService;
+	//single atribute of rewardCentral objet
 	private final RewardCentral rewardsCentral;
 	private final TripPricer tripPricer = new TripPricer();
 	public final Tracker tracker;
 	boolean testMode = true;
+	//attribute of eXecutorService get the newCachedThreadPool method
+	ExecutorService executor = Executors.newCachedThreadPool();	
+
 
 	public TourGuideService(GpsUtil gpsUtil, RewardsService rewardsService, RewardCentral rewardsCentral) {
 		this.gpsUtil = gpsUtil;
@@ -66,10 +71,14 @@ public class TourGuideService {
 		return user.getUserRewards();
 	}
 
-	public VisitedLocation getUserLocation(User user) {
-		VisitedLocation visitedLocation = (user.getVisitedLocations().size() > 0) ? user.getLastVisitedLocation()
-				: trackUserLocation(user);
-		return visitedLocation;
+	//modification of the method getUserLocation who use trackUserLocation whith parameter use
+	//if the locationsvisited of user is empty and
+	//else if return the last visited location of the user
+	public VisitedLocation getUserLocation(User user) throws InterruptedException, ExecutionException {
+		if(user.getVisitedLocations().isEmpty()){
+			trackUserLocation(user);
+		}		
+		return  user.getLastVisitedLocation();
 	}
 
 	public User getUser(String userName) {
@@ -95,76 +104,67 @@ public class TourGuideService {
 		return providers;
 	}
 
-	public VisitedLocation trackUserLocation(User user) {
-		VisitedLocation visitedLocation = gpsUtil.getUserLocation(user.getUserId());
-		user.addToVisitedLocations(visitedLocation);
-		rewardsService.calculateRewards(user);
-		return visitedLocation;
+
+	//modification of the trackUserLocation method to use completableFuture 
+	//and executor method to accelerate the process unlike the old version of method who return visited location 
+	public void trackUserLocation(User user)  { 
+  CompletableFuture.supplyAsync(() -> {
+            return gpsUtil.getUserLocation(user.getUserId());
+        }, executor)
+			.thenAccept(location ->{
+				user.addToVisitedLocations(location);
+				try {
+					rewardsService.calculateRewards(user);
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				} catch (ExecutionException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}			
+			});		
 	}
+	//modification of getNearByattractions for create list of the five objetc who have this attributes:
+	// Name of Tourist attraction, 
+	// Tourist attractions lat/long, 
+	// The user's location lat/long, 
+	// The distance in miles between the user's location and each of the attractions.
+	// The reward points for visiting each Attraction.
+	public List<UserNerarbyAttraction> getNearByAttractions(VisitedLocation visitedLocation) {
+		List<UserNerarbyAttraction> nearbyAttractions = new ArrayList<>();
+		List<UserNerarbyAttraction> nearbyAttractSort = new ArrayList<>();
 
 
-	public JSONArray getNearByAttractions(VisitedLocation visitedLocation) {
-
-		List<JSONObject> attractList = new ArrayList<JSONObject>();
-		JSONArray attractSort = new JSONArray();
-
-		for (Attraction attraction : gpsUtil.getAttractions()) {	
-				JSONObject attract = new JSONObject();
-				attract.put("attractionName",attraction.attractionName);
-				attract.put("attractLong", attraction.longitude);
-				attract.put("attractLat", attraction.latitude);
-				attract.put("userLong" ,visitedLocation.location.longitude);
-				attract.put("userLat" ,visitedLocation.location.latitude);
-				attract.put("distance", rewardsService.getDistance(attraction, visitedLocation.location));
-				attract.put("attractRewardPoints", rewardsCentral.getAttractionRewardPoints(attraction.attractionId, visitedLocation.userId));
-
-				attractList.add(attract);	
-		}
-		Collections.sort( attractList, new Comparator<JSONObject>() {
-       
-        private static final String KEY_NAME = "distance";
-
-        @Override
-        public int compare(JSONObject a, JSONObject b) {
-            Double valA = 0d;
-            Double valB = 0d;
-
-            try {
-                valA = (Double) a.get(KEY_NAME);
-                valB = (Double) b.get(KEY_NAME);
-            } 
-            catch (JSONException e) {
-             
-            }
-
-            return valA.compareTo(valB);
-          
-        }
 		
-	});
-	int nbAttract = 5;
-	if(attractList.size() < nbAttract){
-		nbAttract = attractList.size();
+		for (Attraction attraction : gpsUtil.getAttractions()) {
+			UserNerarbyAttraction userAtract = new UserNerarbyAttraction();
+			userAtract.setAttractionName(attraction.attractionName);
+			userAtract.setAttractLong(attraction.longitude);
+			userAtract.setAttractLat( attraction.latitude);
+			userAtract.setUserLong(visitedLocation.location.longitude);
+			userAtract.setUserLat(visitedLocation.location.latitude);
+			userAtract.setDistance(rewardsService.getDistance(attraction, visitedLocation.location));
+			userAtract.setAttractRewardPoints(rewardsCentral.getAttractionRewardPoints(attraction.attractionId, visitedLocation.userId));
+			
+			nearbyAttractions.add(userAtract);
+		
+		}
+		Collections.sort(nearbyAttractions, (o1, o2) -> (o1.getDistance() > o2.getDistance()) ? 1 :
+                                       (o1.getDistance()< o2.getDistance()) ? -1 : 0);
+
+		int nbAttract = 5;
+	if(nearbyAttractions.size() < nbAttract){
+		nbAttract = nearbyAttractions.size();
 	}
 	for (int i = 0; i < nbAttract; i++) {
-        attractSort.put(attractList.get(i));
+        nearbyAttractSort.add(nearbyAttractions.get(i));
     }
 
 
-		return attractSort;
+
+		return nearbyAttractSort;
+
 	}
-
-	/*public List<Attraction> getNearByAttractions(VisitedLocation visitedLocation) {
-		List<Attraction> nearbyAttractions = new ArrayList<>();
-		
-		for (Attraction attraction : gpsUtil.getAttractions()) {
-			if (rewardsService.isWithinAttractionProximity(attraction, visitedLocation.location)) {
-				nearbyAttractions.add(attraction);
-			}
-		}
-
-		return nearbyAttractions;
-	}*/
 
 	private void addShutDownHook() {
 		Runtime.getRuntime().addShutdownHook(new Thread() {

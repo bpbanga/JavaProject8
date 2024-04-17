@@ -6,6 +6,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.util.Date;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.Test;
 
@@ -22,9 +24,10 @@ import com.openclassrooms.tourguide.user.UserReward;
 public class TestRewardsService {
 
 	@Test
-	public void userGetRewards() {
+	public void userGetRewards() throws InterruptedException, ExecutionException {
 		GpsUtil gpsUtil = new GpsUtil();
 		RewardsService rewardsService = new RewardsService(gpsUtil, new RewardCentral());
+		//single instance of rewardCentral
 		RewardCentral rewardCentral = new RewardCentral();
 		InternalTestHelper.setInternalUserNumber(0);
 		TourGuideService tourGuideService = new TourGuideService(gpsUtil, rewardsService, rewardCentral);
@@ -48,9 +51,10 @@ public class TestRewardsService {
 
 	//@Disabled // Needs fixed - can throw ConcurrentModificationException
 	@Test
-	public void nearAllAttractions() {
+	public void nearAllAttractions() throws InterruptedException, ExecutionException {
 		GpsUtil gpsUtil = new GpsUtil();
 		RewardsService rewardsService = new RewardsService(gpsUtil, new RewardCentral());
+		//single instance of rewardCentral
 		RewardCentral rewardCentral = new RewardCentral();
 		rewardsService.setProximityBuffer(Integer.MAX_VALUE);
 
@@ -60,6 +64,13 @@ public class TestRewardsService {
 		rewardsService.calculateRewards(tourGuideService.getAllUsers().get(0));
 		List<UserReward> userRewards = tourGuideService.getUserRewards(tourGuideService.getAllUsers().get(0));
 		tourGuideService.tracker.stopTracking();
+		
+		//try catch allowing a wait of one second so that all  calculateRewards operations    
+		//can be carried out
+		try {
+			TimeUnit.MILLISECONDS.sleep(1000);
+		} catch (InterruptedException e) {
+		}
 
 		assertEquals(gpsUtil.getAttractions().size(), userRewards.size());
 	}

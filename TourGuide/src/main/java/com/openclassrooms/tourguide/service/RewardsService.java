@@ -1,9 +1,13 @@
 package com.openclassrooms.tourguide.service;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import gpsUtil.GpsUtil;
@@ -25,6 +29,9 @@ public class RewardsService {
 	private int attractionProximityRange = 200;
 	private final GpsUtil gpsUtil;
 	private final RewardCentral rewardsCentral;
+	// new executor service for paralelism operation
+	ExecutorService executor = Executors.newCachedThreadPool();	
+
 	
 	public RewardsService(GpsUtil gpsUtil, RewardCentral rewardCentral) {
 		this.gpsUtil = gpsUtil;
@@ -39,23 +46,23 @@ public class RewardsService {
 		proximityBuffer = defaultProximityBuffer;
 	}
 	
-	public void calculateRewards(User user) {
+	//modification of calculateRewards method to overcome competitive errors and
+	//use getRewardPoint for set rewardPoint and add userReward if nearAttraction is true 
+	public void calculateRewards(User user) throws InterruptedException, ExecutionException {
 		List<VisitedLocation> userLocations = new ArrayList<>(user.getVisitedLocations()); 
 		List<Attraction> attractions = gpsUtil.getAttractions();
-
-		
+	
 		for(VisitedLocation visitedLocation : userLocations) {
 
 				for(Attraction attraction : attractions) {
-					UserReward rewardToAdd = null;
+					
 					if(user.getUserRewards().stream().filter(r -> r.attraction.attractionName.equals(attraction.attractionName)).count() == 0) {
 						if(nearAttraction(visitedLocation, attraction)) {
-							rewardToAdd = new UserReward(visitedLocation, attraction, getRewardPoints(attraction, user));
+							UserReward userReward =  new UserReward(visitedLocation, attraction, 0);
+							getRewardPoints(userReward, attraction, user);
 						}
 					}
-					if(rewardToAdd != null){
-						user.addUserReward(rewardToAdd);
-					}
+					
 				}
 			}
 		
@@ -68,11 +75,22 @@ public class RewardsService {
 	private boolean nearAttraction(VisitedLocation visitedLocation, Attraction attraction) {
 		return getDistance(attraction, visitedLocation.location) > proximityBuffer ? false : true;
 	}
-	
-	private int getRewardPoints(Attraction attraction, User user) {
-		return rewardsCentral.getAttractionRewardPoints(attraction.attractionId, user.getUserId());
+
+	//modification of getRewardPoints method to use completableFututre and
+	// executors method to accelerate the process and take new param usereward for add user 
+    private  void getRewardPoints(UserReward userReward, Attraction attraction, User user )  {
+		//userReward.setRewardPoints(10);
+		//user.addUserReward(userReward);
+		 CompletableFuture.supplyAsync(() -> {
+            return rewardsCentral.getAttractionRewardPoints(attraction.attractionId, user.getUserId());
+        }, executor)
+			.thenAccept(points ->{
+				userReward.setRewardPoints(points);
+				user.addUserReward(userReward);
+			});
+		
 	}
-	
+
 	public double getDistance(Location loc1, Location loc2) {
         double lat1 = Math.toRadians(loc1.latitude);
         double lon1 = Math.toRadians(loc1.longitude);
