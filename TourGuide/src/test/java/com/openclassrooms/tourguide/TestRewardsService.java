@@ -38,6 +38,12 @@ public class TestRewardsService {
 		tourGuideService.trackUserLocation(user);
 		List<UserReward> userRewards = user.getUserRewards();
 		tourGuideService.tracker.stopTracking();
+		//try catch allowing a wait of one second so that all  calculateRewards operations    
+		//can be carried out
+		try {
+			TimeUnit.MILLISECONDS.sleep(1000);
+		} catch (InterruptedException e) {
+		}
 		assertTrue(userRewards.size() == 1);
 	}
 
