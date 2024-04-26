@@ -7,7 +7,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import gpsUtil.GpsUtil;
@@ -46,26 +45,28 @@ public class RewardsService {
 		proximityBuffer = defaultProximityBuffer;
 	}
 	
-	//modification of calculateRewards method to overcome competitive errors and
-	//use getRewardPoint for set rewardPoint and add userReward if nearAttraction is true 
+	
+	/** 
+	 * method to overcome competitive errors and
+	 * use getRewardPoint for set rewardPoint and add userReward if nearAttraction is true
+	 * @param user attribute used to do differents actions
+	 * @throws InterruptedException
+	 * @throws ExecutionException
+	 */
 	public void calculateRewards(User user) throws InterruptedException, ExecutionException {
 		List<VisitedLocation> userLocations = new ArrayList<>(user.getVisitedLocations()); 
 		List<Attraction> attractions = gpsUtil.getAttractions();
 	
 		for(VisitedLocation visitedLocation : userLocations) {
-
-				for(Attraction attraction : attractions) {
-					
-					if(user.getUserRewards().stream().filter(r -> r.attraction.attractionName.equals(attraction.attractionName)).count() == 0) {
-						if(nearAttraction(visitedLocation, attraction)) {
-							UserReward userReward =  new UserReward(visitedLocation, attraction, 0);
-							getRewardPoints(userReward, attraction, user);
-						}
+			for(Attraction attraction : attractions) {	
+				if(user.getUserRewards().stream().filter(r -> r.attraction.attractionName.equals(attraction.attractionName)).count() == 0) {
+					if(nearAttraction(visitedLocation, attraction)) {
+						UserReward userReward =  new UserReward(visitedLocation, attraction, 0);
+						getRewardPoints(userReward, attraction, user);
 					}
-					
-				}
+				}	
 			}
-		
+		}	
 	}
 	
 	public boolean isWithinAttractionProximity(Attraction attraction, Location location) {
@@ -76,19 +77,21 @@ public class RewardsService {
 		return getDistance(attraction, visitedLocation.location) > proximityBuffer ? false : true;
 	}
 
-	//modification of getRewardPoints method to use completableFututre and
-	// executors method to accelerate the process and take new param usereward for add user 
-    private  void getRewardPoints(UserReward userReward, Attraction attraction, User user )  {
-		//userReward.setRewardPoints(10);
-		//user.addUserReward(userReward);
-		 CompletableFuture.supplyAsync(() -> {
+	/** 
+	 * method to use completableFututre and
+	 * executors method to accelerate the process and take new param usereward for add user
+	 * @param userReward single param to take and and form user
+	 * @param attraction param to take for getAttractionRewardPoint methode
+	 * @param user param used to do different actions
+	 */
+    private  void getRewardPoints(UserReward userReward, Attraction attraction, User user )  {	
+		CompletableFuture.supplyAsync(() -> {
             return rewardsCentral.getAttractionRewardPoints(attraction.attractionId, user.getUserId());
         }, executor)
-			.thenAccept(points ->{
-				userReward.setRewardPoints(points);
-				user.addUserReward(userReward);
-			});
-		
+		.thenAccept(points ->{
+			userReward.setRewardPoints(points);
+			user.addUserReward(userReward);
+		});	
 	}
 
 	public double getDistance(Location loc1, Location loc2) {

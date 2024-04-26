@@ -7,6 +7,7 @@ package com.openclassrooms.tourguide.user;
 // The user's location lat/long, 
 // The distance in miles between the user's location and each of the attractions.
 // The reward points for visiting each Attraction.
+
 public class UserNerarbyAttraction {
 
 
@@ -72,7 +73,4 @@ public class UserNerarbyAttraction {
     public int getAttractRewardPoints() {
         return attractRewardPoints;
     }
-   
-
-
 }

@@ -45,7 +45,7 @@ public class TestPerformance {
 	 * TimeUnit.MILLISECONDS.toSeconds(stopWatch.getTime()));
 	 */
 
-	//@Disabled
+	
 	@Test
 	public void highVolumeTrackLocation() throws InterruptedException, ExecutionException {
 		GpsUtil gpsUtil = new GpsUtil();
@@ -73,7 +73,7 @@ public class TestPerformance {
 		assertTrue(TimeUnit.MINUTES.toSeconds(15) >= TimeUnit.MILLISECONDS.toSeconds(stopWatch.getTime()));
 	}
 
-	//@Disabled
+	
 	@Test
 	public void highVolumeGetRewards() {
 		GpsUtil gpsUtil = new GpsUtil();
@@ -110,7 +110,6 @@ public class TestPerformance {
 		tourGuideService.tracker.stopTracking();
 
 		//try catch allowing a wait of one second so that all asynchronous operations can be carried out
-
 		try {
 			TimeUnit.MILLISECONDS.sleep(1000);
 		} catch (InterruptedException e) {

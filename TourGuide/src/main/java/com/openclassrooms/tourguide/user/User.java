@@ -69,9 +69,12 @@ public class User {
 		visitedLocations.clear();
 	}
 
-	// modification of the method in order to add a userReward when one
-	// does not exist in the userRewards unlike the old version which added
-	// duplicates of userRewards when it found one existing in the userRewards 
+	
+	/** 
+	 * the method  add a userReward when one
+	 * does not exist in the userRewards
+	 * @param userReward param of add to the list userRewards
+	 */
 	public void addUserReward(UserReward userReward) {
 		boolean rewardToAdd = false;
 		if( userRewards.stream().filter(r -> r.attraction.attractionName.equals(userReward.attraction.attractionName)).count() == 0) {

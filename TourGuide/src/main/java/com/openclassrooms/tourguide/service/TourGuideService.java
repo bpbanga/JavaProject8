@@ -49,7 +49,6 @@ public class TourGuideService {
 	//attribute of eXecutorService get the newCachedThreadPool method
 	ExecutorService executor = Executors.newCachedThreadPool();	
 
-
 	public TourGuideService(GpsUtil gpsUtil, RewardsService rewardsService, RewardCentral rewardsCentral) {
 		this.gpsUtil = gpsUtil;
 		this.rewardsService = rewardsService;
@@ -71,9 +70,14 @@ public class TourGuideService {
 		return user.getUserRewards();
 	}
 
-	//modification of the method getUserLocation who use trackUserLocation whith parameter use
-	//if the locationsvisited of user is empty and
-	//else if return the last visited location of the user
+	/** 
+	 * methode allowing to return the last visited location of other user
+	 * if thier visitedLocations is not empty
+	 * @param user param who do diferent modifications
+	 * @return VisitedLocation single visitedLocation
+	 * @throws InterruptedException
+	 * @throws ExecutionException
+	 */
 	public VisitedLocation getUserLocation(User user) throws InterruptedException, ExecutionException {
 		if(user.getVisitedLocations().isEmpty()){
 			trackUserLocation(user);
@@ -104,38 +108,38 @@ public class TourGuideService {
 		return providers;
 	}
 
-
-	//modification of the trackUserLocation method to use completableFuture 
-	//and executor method to accelerate the process unlike the old version of method who return visited location 
+	/** 
+	 * methode allowing to add location vistend for other user and calculate
+	 * reward of this user
+	 * @param user param who used for do diferent actions
+	 */
 	public void trackUserLocation(User user)  { 
-  CompletableFuture.supplyAsync(() -> {
+  		CompletableFuture.supplyAsync(() -> {
             return gpsUtil.getUserLocation(user.getUserId());
         }, executor)
-			.thenAccept(location ->{
-				user.addToVisitedLocations(location);
-				try {
-					rewardsService.calculateRewards(user);
-				} catch (InterruptedException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				} catch (ExecutionException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}			
-			});		
+		.thenAccept(location ->{
+			user.addToVisitedLocations(location);
+			try {
+				rewardsService.calculateRewards(user);
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (ExecutionException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}			
+		});		
 	}
-	//modification of getNearByattractions for create list of the five objetc who have this attributes:
-	// Name of Tourist attraction, 
-	// Tourist attractions lat/long, 
-	// The user's location lat/long, 
-	// The distance in miles between the user's location and each of the attractions.
-	// The reward points for visiting each Attraction.
+	
+	/** 
+	 * methode allowing to create a list of five closest objects
+	 * @param visitedLocation param allowing get the position 
+	 * @return List<UserNerarbyAttraction> list who take all params of UserNerarbyAttraction
+	 */
 	public List<UserNerarbyAttraction> getNearByAttractions(VisitedLocation visitedLocation) {
 		List<UserNerarbyAttraction> nearbyAttractions = new ArrayList<>();
 		List<UserNerarbyAttraction> nearbyAttractSort = new ArrayList<>();
 
-
-		
 		for (Attraction attraction : gpsUtil.getAttractions()) {
 			UserNerarbyAttraction userAtract = new UserNerarbyAttraction();
 			userAtract.setAttractionName(attraction.attractionName);
@@ -153,17 +157,13 @@ public class TourGuideService {
                                        (o1.getDistance()< o2.getDistance()) ? -1 : 0);
 
 		int nbAttract = 5;
-	if(nearbyAttractions.size() < nbAttract){
-		nbAttract = nearbyAttractions.size();
-	}
-	for (int i = 0; i < nbAttract; i++) {
-        nearbyAttractSort.add(nearbyAttractions.get(i));
-    }
-
-
-
+		if(nearbyAttractions.size() < nbAttract){
+			nbAttract = nearbyAttractions.size();
+		}
+		for (int i = 0; i < nbAttract; i++) {
+			nearbyAttractSort.add(nearbyAttractions.get(i));
+		}
 		return nearbyAttractSort;
-
 	}
 
 	private void addShutDownHook() {
@@ -173,7 +173,6 @@ public class TourGuideService {
 			}
 		});
 	}
-
 	/**********************************************************************************
 	 * 
 	 * Methods Below: For Internal Testing

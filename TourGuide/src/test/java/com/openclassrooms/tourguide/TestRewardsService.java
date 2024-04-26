@@ -55,7 +55,6 @@ public class TestRewardsService {
 		assertTrue(rewardsService.isWithinAttractionProximity(attraction, attraction));
 	}
 
-	//@Disabled // Needs fixed - can throw ConcurrentModificationException
 	@Test
 	public void nearAllAttractions() throws InterruptedException, ExecutionException {
 		GpsUtil gpsUtil = new GpsUtil();
